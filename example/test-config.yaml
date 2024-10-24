@@ -1,0 +1,43 @@
+distributors:  # Specifies which distributor plugins to load.
+  - distributor: ninja-bear-distributor-git
+    as: git
+
+languages:
+  - language: ninja-bear-language-examplescript
+    distributors:  # Specifies which distributor plugins to use for the language.
+      - git
+
+properties:
+  - type: bool
+    name: myBoolean
+    value: true
+
+  - type: int
+    name: myInteger
+    value: 142
+
+  - type: float
+    name: myFloat
+    value: 322f  # Float with float specifier. However, an additional specifier (f) is not required and will be trimmed.
+
+  - type: float
+    name: myCombinedFloat
+    value: ${myInteger} * ${myFloat}  # Number and boolean combinations get evaluated during the dump process.
+
+  - type: double
+    name: myDouble
+    value: 233.9
+
+  - type: string
+    name: myString
+    value: Hello World
+    hidden: true  # If a property should act as a helper but should not be written to the generated file, it must be marked as 'hidden'.
+
+  - type: regex
+    name: myRegex
+    value: Test Reg(E|e)x
+    comment: Just another RegEx.  # Variables can be described using the comment property.
+
+  - type: string
+    name: mySubstitutedString
+    value: Sometimes I just want to scream ${myString}!  # To use the value of another property, simply use its name with ${}. E.g., ${myString}.

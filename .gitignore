@@ -1,0 +1,8 @@
+**/__pycache__
+**/generated
+build
+*.egg-info
+dist
+.coverage
+htmlcov
+**/**test_output**

@@ -1,0 +1,11 @@
+[build-system]
+requires = [ "setuptools", "wheel" ]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+select = ["E", "F"]
+line-length = 120
+exclude = ["misc"]
+
+[tool.coverage.report]
+fail_under = 90
