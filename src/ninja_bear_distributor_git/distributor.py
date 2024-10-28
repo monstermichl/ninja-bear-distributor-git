@@ -1,26 +1,45 @@
 from __future__ import annotations
 import os
 import re
+import subprocess
 import tempfile
-from typing import Dict
+
+from typing import Dict, Tuple
+from getpass import getpass
+from os.path import join
 
 from ninja_bear import DistributorBase, DistributorCredentials, DistributeInfo
-from ninja_bear.helpers.shell import execute_commands
-from ninja_bear.base.info import VERSION
 
 class NoRepositoryUrlProvidedException(Exception):
     def __init__(self):
         super().__init__('No repository URL has been provided')
 
 
+class NoPasswordProvidedException(Exception):
+    def __init__(self, url):
+        super().__init__(f'No password has been provided for {url}')
+
+
+class NoCommitMessageProvidedException(Exception):
+    def __init__(self, file_name, url):
+        super().__init__(f'No commit message has been provided for {file_name} ({url})')
+
+
 class GitProblemException(Exception):
     def __init__(self, problem: str, additional_info: str=''):
-        super().__init__(problem, additional_info)
+        problem = f'{problem}\n{additional_info}' if additional_info else problem
+        super().__init__(problem)
 
 
 class GitVersionException(Exception):
     def __init__(self, check_version: GitVersion, git_version: GitVersion):
         super().__init__(f'Invalid git version. Required: {check_version}, actual: {git_version}')
+
+
+def execute_command(commands: str, directory=None) -> Tuple[int, str, str]:
+        # https://www.squash.io/how-to-execute-a-program-or-system-command-in-python/.
+        result = subprocess.run(commands, capture_output=True, text=True, shell=True, cwd=directory)
+        return result.returncode, result.stdout, result.stderr
 
 
 class GitVersion:
@@ -53,7 +72,7 @@ class GitVersion:
         :return: GitVersion instance with the actual Git version.
         :rtype:  GitVersion
         """
-        code, text, _ = execute_commands('git --version')
+        code, text, _ = execute_command('git --version')
         version_text = text if code == 0 else ''
 
         if code != 0:
@@ -89,7 +108,7 @@ class GitVersion:
 class Distributor(DistributorBase):
     _MIN_GIT_VERSION = GitVersion(2, 29, 0)  # Needs at least git version 2.29.0 as it introduced partial-clone (https://www.git-scm.com/docs/partial-clone).
 
-    def __init__(self, config: Dict, credentials: DistributorCredentials=None):
+    def __init__(self, config: Dict[str, str], credentials: DistributorCredentials=None):
         """
         Constructor
 
@@ -101,20 +120,61 @@ class Distributor(DistributorBase):
         :type user:         str
         :param password:    Git user password or token.
         :type password:     str
-
-        :raises NoRepositoryUrlProvidedException: Raised if no Git server URL has been provided.
         """
         super().__init__(config, credentials)
 
-        target_path = self.from_config('path')  # Use root directory as default path.
+        target_path, _ = self.from_config('path')  # Use root directory as default path.
+        remote_name, _ = self.from_config('remote_name')
 
-        self._url = self.from_config('url')
+        self._url, _ = self.from_config('url')
+        self._remote_name = remote_name if remote_name else 'origin'
         self._target_path = target_path if target_path else ''  # Use root directory as default path.
-        self._user = self.from_config('user')
-        self._password = self.from_config('password')
+        self._user, self._user_key_exists = self.from_config('user')
+        self._password, self._password_key_exists = self.from_config('password')
+        self._branch, _ = self.from_config('branch')
+        self._message, _ = self.from_config('message')
 
-    def get_responsiblity_type(self) -> str:
-        return 'git'
+        self._check_preconditions()
+        self._check_git_version()
+        
+    def _check_preconditions(self):
+        """
+        Check preconditions.
+
+        :raises NoRepositoryUrlProvidedException: Raised if no Git server URL has been provided.
+        :raises NoPasswordProvidedException:      Raised if no password has been provided.
+        """
+        url = self._url
+
+        # Make sure an URL has been provided.
+        if not url:
+            raise NoRepositoryUrlProvidedException()
+        
+        # Prompt user input if required.
+        if not self._user and self._user_key_exists:
+            self._user = input(f'User ({url}): ')
+        
+        # Prompt password input if required.
+        if not self._password and self._password_key_exists:
+            self._password = getpass(f'Password ({url}): ', )
+
+        # Make sure a password has been provided.
+        if not self._password:
+            raise NoPasswordProvidedException(url)
+        
+    def _check_git_version(self):
+        """
+        Checks if the installed Git version is suitable.
+
+        :raises GitVersionException: Raised if Git does not fulfill the minimum required version.
+        """
+        # Retrieve Git version.
+        git_version = GitVersion.from_git()
+        
+        if git_version.major < self._MIN_GIT_VERSION.major or \
+           git_version.minor < self._MIN_GIT_VERSION.minor or \
+           git_version.patch < self._MIN_GIT_VERSION.patch:
+            raise GitVersionException(self._MIN_GIT_VERSION, git_version)
 
     def _distribute(self, info: DistributeInfo) -> DistributorBase:
         """
@@ -123,7 +183,6 @@ class Distributor(DistributorBase):
         :param info: Contains the required information to distribute the generated config.
         :type info:  DistributeInfo
 
-        :raises GitVersionException: Raised if Git does not fulfill the minimum required version.
         :raises GitProblemException: Raised on different Git problems.
 
         :return: The current GitDistributor instance.
@@ -132,110 +191,84 @@ class Distributor(DistributorBase):
         file_name = info.file_name
         data = info.data
 
-        # Make sure an URL has been provided.
-        if not self._url:
-            raise NoRepositoryUrlProvidedException()
-        
-        # If credentials were provided, overwrite YAML defined user and password value.
-        credentials = self.credentials()
+        # Create temporary folder to clone the git repo into and work with it.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            SEPARATOR = '://'
+            url = self._url
+            url_parts = url.split(SEPARATOR)
+            protocol = url_parts[0] if len(url_parts) > 1 else 'https'
+            temp_url = url_parts[1] if len(url_parts) > 1 else url_parts[0]
+            separator = SEPARATOR if protocol else ''
+            user = self._user if self._user else ''
+            password = self._password if self._password else ''
+            colon = ':' if user and password else ''
+            at = '@' if user or password else ''
+            branch_command = f'--branch {self._branch}' if self._branch else ''
+            url_with_credentials = f'{protocol}{separator}{user}{colon}{password}{at}{temp_url}'
+            password = None
 
-        if credentials:
-            user = credentials.user
-            password = credentials.password
-        else:
-            user = self._user
-            password = self._password
+            code, _, stderr = execute_command(
+                # Space before git-command to not log in history (might be disabled by the system).
+                f' git clone {branch_command} --filter=blob:none --no-checkout {url_with_credentials} {temp_dir}',
+            )
 
-        # Retrieve Git version.
-        git_version = GitVersion.from_git()
-        
-        if git_version.major < self._MIN_GIT_VERSION.major or \
-           git_version.minor < self._MIN_GIT_VERSION.minor or \
-           git_version.patch < self._MIN_GIT_VERSION.patch:
-            raise GitVersionException(self._MIN_GIT_VERSION, git_version)
-        else:
-            # Create temporary folder to clone the git repo into and work with it.
-            with tempfile.TemporaryDirectory() as temp_dir:
-                SEPARATOR = '://'
-                url_parts = self._url.split(SEPARATOR)
-                protocol = url_parts[0] if len(url_parts) > 1 else ''
-                url = url_parts[1] if len(url_parts) > 1 else url_parts[0]
-                separator = SEPARATOR if protocol else ''
-                user = self._user if self._user else ''
-                password = self._password if self._password else ''
-                colon = ':' if user and password else ''
-                at = '@' if user or password else ''
-                url_with_credentials = f'{protocol}{separator}{user}{colon}{password}{at}{url}'
-                password = None
+            # If clone was successful, go on.
+            if code == 0:
+                # Only clone desired target folder.
+                code, _, stderr = execute_command(
+                    f'git sparse-checkout set {self._target_path}' if self._target_path else '',
+                    directory=temp_dir,
+                )
+            else:
+                # Overwrite error to avoid reflecting the password from the URL to the output.
+                stderr = ''
 
-                code, _, stderr = execute_commands(*[
-                    f'git clone --filter=blob:none --no-checkout {url_with_credentials} {temp_dir}',
-                ])
+            if code == 0:
+                # Only clone desired target folder.
+                code, _, stderr = execute_command('git checkout', directory=temp_dir)
 
-                # If clone was successful, go on.
+            # If checkout was successful, go on.
+            if code == 0:
+                # Make sure target directory exists.
+                if self._target_path:
+                    os.makedirs(join(temp_dir, self._target_path), exist_ok=True)
+                target_file_path = join(self._target_path, file_name)
+                target_file_path_full = join(temp_dir, target_file_path)
+
+                # Write data to target file.
+                with open(target_file_path_full, 'w') as f:
+                    f.write(data)
+
+                # Add changes.
+                code, _, stderr = execute_command(f'git add "{target_file_path}"', directory=temp_dir)
+
+                # If necessary, request commit message.
+                commit_message = self._message if self._message else input('Commit message: ')
+
                 if code == 0:
-                    # Only clone desired target folder.
-                    code, _, stderr = execute_commands(*[
-                        f'cd {temp_dir}',
-                        f'git sparse-checkout set {self._target_path}' if self._target_path else '',
-                        'git checkout',
-                    ])
+                    if not commit_message:
+                        raise NoCommitMessageProvidedException(file_name)
 
-                # If checkout was successful, go on.
-                if code == 0:
-                    # Make sure target directory exists.
-                    if self._target_path:
-                        os.makedirs(os.path.join(temp_dir, self._target_path), exist_ok=True)
-
-                    target_file_path = os.path.join(self._target_path, file_name)
-                    target_file_path_full = os.path.join(temp_dir, target_file_path)
-
-                    # Write data to target file.
-                    with open(target_file_path_full, 'w') as f:
-                        f.write(data)
-
-                    # Add changes.
-                    code, _, stderr = execute_commands(*[
-                        f'cd {temp_dir}',
-                        f'git add "{target_file_path}"',
-                    ])
-
-                    def commit():
-                        return execute_commands(*[
-                            f'cd {temp_dir}',
-                            f'git commit "{target_file_path}" -m "Update {target_file_path} via ninja-bear v{VERSION}"',
-                        ])
-
-                    if code == 0:
-                        # Commit changes.
-                        code, _, stderr = commit()
+                    # Commit changes.
+                    code, _, stderr = execute_command(
+                        f'git commit "{target_file_path}" -m "{commit_message}"',
+                        directory=temp_dir,
+                    )
 
                     if code != 0:
-                        user = self._user if self._user else 'ninja-bear'
+                        raise GitProblemException(f'{file_name} could not be committed to {url}', stderr)
 
-                        # If commit didn't work, it's probably because user.name and user.email are not set. Therefore,
-                        # if a user was provided, use it, otherwise commit as ninja-bear.
-                        code, stdio, stderr = execute_commands(*[
-                            f'cd {temp_dir}',
-                            f'git config --local user.name {user}',
-                            f'git config --local user.email {user}',
-                        ])
-                        # Try to commit changes again.
-                        code, stdio, stderr = commit()
-                        
-                        # if nothing to commit was the problem, correct the error code.
-                        if code != 0 and re.search('nothing to commit', stdio):
-                            code = 0
+                if code == 0:
+                    # Push changes to repo (space before git-command to not log in history (might
+                    # be disabled by the system).
+                    code, _, stderr = execute_command(
+                        f' git push -u {url_with_credentials}',
+                        directory=temp_dir,
+                    )
 
-                    if code == 0:
-                        # Commit and push changes to repo.
-                        code, _, stderr = execute_commands(*[
-                            f'cd {temp_dir}',
-                            f'git push -u {url_with_credentials}',
-                        ])
-
-                    if code != 0:
-                        raise GitProblemException(f'{file_name} could not be pushed to {self._url}', stderr)
-                else:
-                    raise GitProblemException(f'Git repo {self._url} could not be cloned', stderr)
+                if code != 0:
+                    # Don't display Git error as it could reflect the password from the URL to the output.
+                    raise GitProblemException(f'{file_name} could not be pushed to {url}')
+            else:
+                raise GitProblemException(f'Git repo {url} could not be cloned', stderr)
         return self

@@ -20,7 +20,6 @@ setup(
         'ninja_bear_distributor_git': ['config=ninja_bear_distributor_git.distributor:Distributor']
     },
     install_requires=[
-        
     ],
     extras_require={
         'dev': [

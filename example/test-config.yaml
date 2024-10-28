@@ -1,6 +1,35 @@
 distributors:  # Specifies which distributor plugins to load.
+  # -------------------------------------------------------------------------
+  # Property description for ninja-bear-distributor-git.
+  #
+  # distributor (required): ninja-bear-distributor-git
+  # as          (required): Specifies how the distributor will be referenced
+  #                         at the language level (in this case <name-lower>).
+  # url         (required): Specifies the repository's URL.
+  # path        (optional): Specifies the path within the repository. If no
+  #                         Path is provided, the config is added to the
+  #                         root directory.
+  # user        (optional): Specifies the Git user. If the user attribute,
+  #                         but no value is given, the user is prompted to
+  #                         provide the user attribute at runtime.
+  # password    (optional): Specifies the Git password. If the password,
+  #                         attribute but no value is given, the user is
+  #                         prompted to provide the password attribute at
+  #                         runtime.
+  # branch      (optional): Specifies with which branch to work with.
+  # message     (optional): Specifies the commit message. If no message got
+  #                         provided, the user prompted to provide a commit
+  #                         message at runtime.
+  # ignore      (optional): If true, the section gets ignored.
+  # -------------------------------------------------------------------------
   - distributor: ninja-bear-distributor-git
     as: git
+    url: https://github.com/monstermichl/confluent-test.git
+    path: config
+    user:
+    password:
+    branch: development-branch
+    message: Updating abc
 
 languages:
   - language: ninja-bear-language-examplescript
