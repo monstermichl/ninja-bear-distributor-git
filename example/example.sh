@@ -9,7 +9,7 @@ if [ ! -d ${OUTPUT_DIR} ]; then
 fi
 
 # Generate Java and Typescript files from test config.
-ninja-bear -c test-config.yaml -o generated $*
+ninja-bear -c test-config.yaml -d -o generated $*
 
 # Go back to original directory.
 popd

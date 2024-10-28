@@ -11,7 +11,7 @@ if not exist %OUTPUT_DIR% (
 )
 
 rem Generate Java and Typescript files from test config.
-ninja-bear -c test-config.yaml -o generated %*
+ninja-bear -c test-config.yaml -d -o generated %*
 
 rem Go back to original directory.
 popd
