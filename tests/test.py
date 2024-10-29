@@ -1,10 +1,25 @@
-from os import path
+import datetime
 import pathlib
-from typing import Type
+import re
+import tempfile
 import unittest
 
-from ninja_bear import Orchestrator, DistributorCredentials, GeneratorBase, NamingConventionType, DumpInfo, PropertyType, LanguageConfigBase, Plugin
-from src.ninja_bear_distributor_git.distributor import Distributor
+from typing import Type
+from os.path import join
+from os import environ
+
+import yaml
+
+from ninja_bear import (
+    DumpInfo,
+    GeneratorBase,
+    LanguageConfigBase,
+    NamingConventionType,
+    Orchestrator,
+    Plugin,
+    PropertyType,
+)
+from src.ninja_bear_distributor_git.distributor import execute_command
 
 
 _COMPARE_FILE_CONTENT = """
@@ -15,9 +30,7 @@ struct TestConfig:
     float myCombinedFloat = 45724.0
     double myDouble = 233.9
     regex myRegex = /Test Reg(E|e)x/ -- Just another RegEx.
-    string mySubstitutedString = 'Sometimes I just want to scream Hello Mars!'
-    string myCombinedString = 'I am telling you that this string got included from test-include.yaml.'
--- Generated with ninja-bear v1.0.0 (https://pypi.org/project/ninja-bear/).
+    string mySubstitutedString = 'Sometimes I just want to scream Hello World!'
 """
 
 
@@ -82,20 +95,57 @@ class ExampleScriptConfig(LanguageConfigBase):
 class Test(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
+        self._config_name = 'test-config'
+        self._config_file = f'{self._config_name}.yaml'
         self._test_path = pathlib.Path(__file__).parent.resolve()
-        self._test_config_path = path.join(self._test_path, '..', 'example/test-config.yaml')
+        self._test_config_path = join(self._test_path, '..', f'example/{self._config_file}')
         self._plugins = [
             Plugin('examplescript', ExampleScriptConfig),
         ]
 
     def test_distribution(self):
-        # Get secret from environment variables.
-        credential = DistributorCredentials('example-alias', None, 'password')
-        orchestrator = Orchestrator.read_config(self._test_config_path, [credential], plugins=self._plugins)
+        # Load test-config.yaml directly in test file to allow implementer to modify properties if required.
+        with open(self._test_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            remote = environ.get('URL')
+            token = environ.get('TOKEN')
+            start_time = datetime.datetime.now().time()
 
-        orchestrator.distribute()
+            if not remote:
+                raise Exception('No remote URL provided')
+            if not token:
+                raise Exception('No authentication token provided')
+            
+            # Update data in distributor.
+            git_distributor = config['distributors'][0]
+            git_distributor['url'] = remote
+            git_distributor['password'] = token
+            del git_distributor['user']
 
-        # TODO: Implement
-        # TODO: Add distributor result check here (e.g. if file has been distributed to Git or whatever
-        # your distributor does).
-        raise Exception('Distributor result checking has not been implemented')
+            # Add meta data.
+            KEY_META = 'meta'
+
+            config[KEY_META] = {}
+            config[KEY_META]['time'] = True
+
+            # Run parsing and distribution.
+            orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
+            orchestrator.distribute()
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
+                execute_command(f'git clone {remote} {temp_dir}')
+                
+                with open(target_file_path, 'r') as f:
+                    loaded_content = f.read()
+                    time_comment = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))[0]
+
+                    # Remove time from content for easier comparison.
+                    loaded_content = loaded_content.replace(time_comment.group(0), '')
+                    
+                    # Compare time.
+                    compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
+                    self.assertGreaterEqual(compare_time, start_time)
+
+                    # Compare content.
+                    self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
