@@ -24,11 +24,11 @@ distributors:  # Specifies which distributor plugins to load.
   # -------------------------------------------------------------------------
   - distributor: ninja-bear-distributor-git
     as: git
-    url: https://github.com/monstermichl/confluent-test.git
+    url: https://github.com/exampleuser/ninja-bear-distributor-test.git
     path: config
     user:
     password:
-    branch: development-branch
+    branch: main
     message: Updating abc
 
 languages:
