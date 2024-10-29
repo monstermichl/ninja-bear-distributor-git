@@ -256,7 +256,11 @@ class Distributor(DistributorBase):
                     )
 
                     if code != 0:
-                        raise GitProblemException(f'{file_name} could not be committed to {url}', stderr)
+                        if stderr.find('nothing to commit'):
+                            # Everything's fine, the file just didn't change.
+                            code = 0
+                        else:
+                            raise GitProblemException(f'{file_name} could not be committed to {url}', stderr)
 
                 if code == 0:
                     # Push changes to repo (space before git-command to not log in history (might
