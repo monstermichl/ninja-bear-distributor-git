@@ -145,15 +145,16 @@ class Test(unittest.TestCase):
                         loaded_content = f.read()
                         time_comments = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
 
-                        if include_time and len(time_comments) > 0:
+                        if len(time_comments) > 0:
                             time_comment = time_comments[0]
 
                             # Remove time from content for easier comparison.
                             loaded_content = loaded_content.replace(time_comment.group(0), '')
-                        
-                            # Compare time.
-                            compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
-                            self.assertGreaterEqual(compare_time, start_time)
+
+                            if include_time:
+                                # Compare time.
+                                compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
+                                self.assertGreaterEqual(compare_time, start_time)
 
                         # Compare content.
                         self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
