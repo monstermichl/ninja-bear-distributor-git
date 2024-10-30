@@ -128,6 +128,7 @@ class Test(unittest.TestCase):
                 KEY_META = 'meta'
 
                 config[KEY_META] = {}
+                config[KEY_META]['date'] = include_time
                 config[KEY_META]['time'] = include_time
 
                 # Run parsing and distribution.
@@ -143,12 +144,15 @@ class Test(unittest.TestCase):
 
                     with open(target_file_path, 'r') as f:
                         loaded_content = f.read()
+                        date_comments = list(re.finditer(r'.+ date: ((\d+(:|\.))+\d+).+', loaded_content))
                         time_comments = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
 
                         if len(time_comments) > 0:
+                            date_comment = date_comments[0]
                             time_comment = time_comments[0]
 
-                            # Remove time from content for easier comparison.
+                            # Remove time and date from content for easier comparison.
+                            date_comments = loaded_content.replace(date_comment.group(0), '')
                             loaded_content = loaded_content.replace(time_comment.group(0), '')
 
                             if include_time:
