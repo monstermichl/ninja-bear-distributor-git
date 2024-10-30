@@ -18,6 +18,9 @@ jobs:
   test_and_lint:
     name: Test and lint
     runs-on: ubuntu-latest
+    env:
+        URL: ${{ vars.TEST_REPO_URL }}
+        TOKEN: ${{ secrets.TEST_REPO_TOKEN }}
     steps:
     - name: Prepare Github environment
       uses: actions/checkout@v2
@@ -32,16 +35,10 @@ jobs:
         python3 -m pip install ruff coverage[toml] ninja-bear
     - name: Run tests
       shell: bash
-      env:
-        URL: ${{ vars.TEST_REPO_URL }}
-        TOKEN: ${{ secrets.TEST_REPO_TOKEN }}
       run: |
         python3 -m unittest discover tests || exit -1
     - name: Check coverage
       shell: bash
-      env:
-        URL: ${{ vars.TEST_REPO_URL }}
-        TOKEN: ${{ secrets.TEST_REPO_TOKEN }}
       run: |
         python3 -m coverage run -m unittest || exit -1
         python3 -m coverage report || exit -1
