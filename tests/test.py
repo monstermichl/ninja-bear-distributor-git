@@ -19,7 +19,7 @@ from ninja_bear import (
     Plugin,
     PropertyType,
 )
-from src.ninja_bear_distributor_git.distributor import execute_command
+from src.ninja_bear_distributor_git.distributor import Distributor, execute_command
 
 
 _COMPARE_FILE_CONTENT = """
@@ -101,6 +101,7 @@ class Test(unittest.TestCase):
         self._test_config_path = join(self._test_path, '..', f'example/{self._config_file}')
         self._plugins = [
             Plugin('examplescript', ExampleScriptConfig),
+            Plugin('ninja-bear-distributor-git', Distributor),
         ]
 
     def test_distribution(self):
