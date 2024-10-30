@@ -143,9 +143,10 @@ class Test(unittest.TestCase):
 
                     with open(target_file_path, 'r') as f:
                         loaded_content = f.read()
+                        time_comments = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
 
-                        if include_time:
-                            time_comment = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))[0]
+                        if include_time and len(time_comments) > 0:
+                            time_comment = time_comments[0]
 
                             # Remove time from content for easier comparison.
                             loaded_content = loaded_content.replace(time_comment.group(0), '')
@@ -157,9 +158,9 @@ class Test(unittest.TestCase):
                         # Compare content.
                         self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
 
-        # Distibute first with timestamp.
-        distribute(True)
+        # Distribute first and second time without timestamp to cover "nothing to commit"-branch.
+        distribute()
+        distribute()
 
-        # Distribute second and third time without timestamp to cover "nothing to commit"-branch.
-        distribute()
-        distribute()
+        # Distibute third time with timestamp.
+        distribute(True)
