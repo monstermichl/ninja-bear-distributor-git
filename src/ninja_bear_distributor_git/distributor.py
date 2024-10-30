@@ -124,10 +124,8 @@ class Distributor(DistributorBase):
         super().__init__(config, credentials)
 
         target_path, _ = self.from_config('path')  # Use root directory as default path.
-        remote_name, _ = self.from_config('remote_name')
 
         self._url, _ = self.from_config('url')
-        self._remote_name = remote_name if remote_name else 'origin'
         self._target_path = target_path if target_path else ''  # Use root directory as default path.
         self._user, self._user_key_exists = self.from_config('user')
         self._password, self._password_key_exists = self.from_config('password')
