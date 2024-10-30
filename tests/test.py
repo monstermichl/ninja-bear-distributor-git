@@ -135,8 +135,11 @@ class Test(unittest.TestCase):
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
-                execute_command(f'git clone {remote} {temp_dir}')
+                code, _, _ = execute_command(f' git clone {token}@{remote} {temp_dir}')
                 
+                if code != 0:
+                    raise Exception('Cloning failed')
+
                 with open(target_file_path, 'r') as f:
                     loaded_content = f.read()
                     time_comment = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))[0]
