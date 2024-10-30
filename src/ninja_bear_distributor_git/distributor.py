@@ -252,21 +252,22 @@ class Distributor(DistributorBase):
                         f'git commit "{target_file_path}" -m "{commit_message}"',
                         directory=temp_dir,
                     )
+                    no_changes = False
 
                     if code != 0:
                         if stderr.find('nothing to commit'):
                             # Everything's fine, the file just didn't change.
-                            code = 0
+                            no_changes = True
                         else:
                             raise GitProblemException(f'{file_name} could not be committed to {url}', stderr)
 
-                if code == 0:
-                    # Push changes to repo (space before git-command to not log in history (might
-                    # be disabled by the system).
-                    code, _, stderr = execute_command(
-                        f' git push -u {url_with_credentials}',
-                        directory=temp_dir,
-                    )
+                    if not no_changes:
+                        # Push changes to repo (space before git-command to not log in history (might
+                        # be disabled by the system).
+                        code, _, stderr = execute_command(
+                            f' git push -u {url_with_credentials}',
+                            directory=temp_dir,
+                        )
 
                 if code != 0:
                     # Don't display Git error as it could reflect the password from the URL to the output.
