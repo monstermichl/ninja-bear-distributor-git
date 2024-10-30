@@ -23,7 +23,7 @@ setup(
     ],
     extras_require={
         'dev': [
-            'ninja-bear>=1.0.0',
+            'ninja-bear>=0.1.0',
             'wheel>=0.41.1',
             'twine>=4.0.2',
             'ruff>=0.0.47',
