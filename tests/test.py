@@ -147,16 +147,20 @@ class Test(unittest.TestCase):
                         date_comments = list(re.finditer(r'.+ date: ((\d+(:|\.))+\d+).+', loaded_content))
                         time_comments = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
 
-                        if len(time_comments) > 0:
+                        if len(date_comments) > 0:
                             date_comment = date_comments[0]
+
+                            # Remove date from content for easier comparison.
+                            date_comments = loaded_content.replace(date_comment.group(0), '')
+
+                        if len(time_comments) > 0:
                             time_comment = time_comments[0]
 
-                            # Remove time and date from content for easier comparison.
-                            date_comments = loaded_content.replace(date_comment.group(0), '')
+                            # Remove time from content for easier comparison.
                             loaded_content = loaded_content.replace(time_comment.group(0), '')
 
+                            # Compare time.
                             if include_time:
-                                # Compare time.
                                 compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
                                 self.assertGreaterEqual(compare_time, start_time)
 
