@@ -105,51 +105,61 @@ class Test(unittest.TestCase):
         ]
 
     def test_distribution(self):
-        # Load test-config.yaml directly in test file to allow implementer to modify properties if required.
-        with open(self._test_config_path, 'r') as f:
-            config = yaml.safe_load(f)
-            remote = environ.get('URL')
-            token = environ.get('TOKEN')
-            start_time = datetime.datetime.now().time()
+        def distribute(include_time=False):
+            # Load test-config.yaml directly in test file to allow implementer to modify properties if required.
+            with open(self._test_config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                remote = environ.get('URL')
+                token = environ.get('TOKEN')
+                start_time = datetime.datetime.now().time()
 
-            if not remote:
-                raise Exception('No remote URL provided')
-            if not token:
-                raise Exception('No authentication token provided')
-            
-            # Update data in distributor.
-            git_distributor = config['distributors'][0]
-            git_distributor['url'] = remote
-            git_distributor['password'] = token
-            del git_distributor['user']
-
-            # Add meta data.
-            KEY_META = 'meta'
-
-            config[KEY_META] = {}
-            config[KEY_META]['time'] = True
-
-            # Run parsing and distribution.
-            orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
-            orchestrator.distribute()
-
-            with tempfile.TemporaryDirectory() as temp_dir:
-                target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
-                code, _, _ = execute_command(f' git clone {remote.replace("://", f"://{token}@")} {temp_dir}')
+                if not remote:
+                    raise Exception('No remote URL provided')
+                if not token:
+                    raise Exception('No authentication token provided')
                 
-                if code != 0:
-                    raise Exception('Cloning failed')
+                # Update data in distributor.
+                git_distributor = config['distributors'][0]
+                git_distributor['url'] = remote
+                git_distributor['password'] = token
+                del git_distributor['user']
 
-                with open(target_file_path, 'r') as f:
-                    loaded_content = f.read()
-                    time_comment = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))[0]
+                # Add meta data.
+                KEY_META = 'meta'
 
-                    # Remove time from content for easier comparison.
-                    loaded_content = loaded_content.replace(time_comment.group(0), '')
+                config[KEY_META] = {}
+                config[KEY_META]['time'] = include_time
+
+                # Run parsing and distribution.
+                orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
+                orchestrator.distribute()
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
+                    code, _, _ = execute_command(f' git clone {remote.replace("://", f"://{token}@")} {temp_dir}')
                     
-                    # Compare time.
-                    compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
-                    self.assertGreaterEqual(compare_time, start_time)
+                    if code != 0:
+                        raise Exception('Cloning failed')
 
-                    # Compare content.
-                    self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
+                    with open(target_file_path, 'r') as f:
+                        loaded_content = f.read()
+
+                        if include_time:
+                            time_comment = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))[0]
+
+                            # Remove time from content for easier comparison.
+                            loaded_content = loaded_content.replace(time_comment.group(0), '')
+                        
+                            # Compare time.
+                            compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
+                            self.assertGreaterEqual(compare_time, start_time)
+
+                        # Compare content.
+                        self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
+
+        # Distibute first with timestamp.
+        distribute(True)
+
+        # Distribute second and third time without timestamp to cover "nothing to commit"-branch.
+        distribute()
+        distribute()
