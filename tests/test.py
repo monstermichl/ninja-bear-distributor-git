@@ -135,7 +135,7 @@ class Test(unittest.TestCase):
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
-                code, _, _ = execute_command(f' git clone {remote.replace('://', f"://{token}@")} {temp_dir}')
+                code, _, _ = execute_command(f' git clone {remote.replace("://", f"://{token}@")} {temp_dir}')
                 
                 if code != 0:
                     raise Exception('Cloning failed')
