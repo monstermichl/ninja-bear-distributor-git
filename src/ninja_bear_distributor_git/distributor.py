@@ -240,10 +240,10 @@ class Distributor(DistributorBase):
                 # Add changes.
                 code, _, stderr = execute_command(f'git add "{target_file_path}"', directory=temp_dir)
 
-                # If necessary, request commit message.
-                commit_message = self._message if self._message else input('Commit message: ')
-
                 if code == 0:
+                    # If necessary, request commit message.
+                    commit_message = self._message if self._message else input('Commit message: ')
+
                     if not commit_message:
                         raise NoCommitMessageProvidedException(file_name)
 
@@ -263,15 +263,18 @@ class Distributor(DistributorBase):
 
                     if not no_changes:
                         # Push changes to repo (space before git-command to not log in history (might
-                        # be disabled by the system).
+                        # be disabled by the system)).
                         code, _, stderr = execute_command(
                             f' git push -u {url_with_credentials}',
                             directory=temp_dir,
                         )
 
-                if code != 0:
-                    # Don't display Git error as it could reflect the password from the URL to the output.
-                    raise GitProblemException(f'{file_name} could not be pushed to {url}')
+                        if code != 0:
+                            # Don't display Git error as it could reflect the password from the URL to the output.
+                            raise GitProblemException(f'{file_name} could not be pushed to {url}')
+                        
+                else:
+                    raise GitProblemException(f'{file_name} could not be added to Git')
             else:
                 raise GitProblemException(f'Git repo {url} could not be cloned', stderr)
         return self
