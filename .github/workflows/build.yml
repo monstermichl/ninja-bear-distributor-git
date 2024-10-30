@@ -33,7 +33,7 @@ jobs:
     - name: Run tests
       shell: bash
       env:
-        URL: ${{ env.TEST_REPO_URL }}
+        URL: ${{ vars.TEST_REPO_URL }}
         TOKEN: ${{ secrets.TEST_REPO_TOKEN }}
       run: |
         python3 -m unittest discover tests || exit -1
