@@ -105,7 +105,7 @@ class Test(unittest.TestCase):
         ]
 
     def test_distribution(self):
-        def distribute(include_time=False):
+        def distribute(include_time: bool):
             # Load test-config.yaml directly in test file to allow implementer to modify properties if required.
             with open(self._test_config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -158,9 +158,12 @@ class Test(unittest.TestCase):
                         # Compare content.
                         self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
 
-        # Distribute first and second time without timestamp to cover "nothing to commit"-branch.
-        distribute()
-        distribute()
+        # Distibute first time with timestamp.
+        distribute(True)
 
-        # Distibute third time with timestamp.
+        # Distribute second and third time without timestamp to cover "nothing to commit"-branch.
+        distribute(False)
+        distribute(False)
+
+        # Distibute fourth time with timestamp just to make sure something with a timestamp is in the repo.
         distribute(True)
