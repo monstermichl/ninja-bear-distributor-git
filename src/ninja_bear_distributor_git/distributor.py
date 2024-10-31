@@ -236,7 +236,7 @@ class Distributor(DistributorBase):
                 # Write data to target file.
                 with open(target_file_path_full, 'w') as f:
                     f.write(data)
-                print('------ adding changes')
+
                 # Add changes.
                 code, _, stderr = execute_command(f'git add "{target_file_path}"', directory=temp_dir)
 
@@ -246,13 +246,12 @@ class Distributor(DistributorBase):
 
                     if not commit_message:
                         raise NoCommitMessageProvidedException(file_name)
-                    print('------ committing changes')
+
                     # Commit changes.
                     code, _, stderr = execute_command(
                         f'git commit "{target_file_path}" -m "{commit_message}"',
                         directory=temp_dir,
                     )
-                    print('------ committing changes result', code, stderr)
                     no_changes = False
 
                     if code != 0:
@@ -265,7 +264,6 @@ class Distributor(DistributorBase):
                     if not no_changes:
                         # Push changes to repo (space before git-command to not log in history (might
                         # be disabled by the system)).
-                        print('------ pushing changes')
                         code, _, stderr = execute_command(
                             f' git push -u {url_with_credentials}',
                             directory=temp_dir,

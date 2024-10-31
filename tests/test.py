@@ -121,7 +121,6 @@ class Test(unittest.TestCase):
                 # If context is a CI server, set the Git user.
                 if os.getenv('GITHUB_ACTIONS') or os.getenv('TRAVIS') or \
                     os.getenv('CIRCLECI') or os.getenv('GITLAB_CI'):
-                    print('---------- setting user')
                     execute_command('git config --global user.name github-actions')
                     execute_command('git config --global user.email github-actions@github.com')
                 
