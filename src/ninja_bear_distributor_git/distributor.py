@@ -252,6 +252,7 @@ class Distributor(DistributorBase):
                         f'git commit "{target_file_path}" -m "{commit_message}"',
                         directory=temp_dir,
                     )
+                    print('------ committing changes result', code, stderr)
                     no_changes = False
 
                     if code != 0:
