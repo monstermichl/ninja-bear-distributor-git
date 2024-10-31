@@ -4,7 +4,7 @@ distributors:  # Specifies which distributor plugins to load.
   #
   # distributor (required): ninja-bear-distributor-git
   # as          (required): Specifies how the distributor will be referenced
-  #                         at the language level (in this case <name-lower>).
+  #                         at the language level (in this case git).
   # url         (required): Specifies the repository's URL.
   # path        (optional): Specifies the path within the repository. If no
   #                         Path is provided, the config is added to the
@@ -18,18 +18,18 @@ distributors:  # Specifies which distributor plugins to load.
   #                         runtime.
   # branch      (optional): Specifies with which branch to work with.
   # message     (optional): Specifies the commit message. If no message got
-  #                         provided, the user prompted to provide a commit
-  #                         message at runtime.
+  #                         provided, the user will be prompted to provide
+  #                         a commit message at runtime.
   # ignore      (optional): If true, the section gets ignored.
   # -------------------------------------------------------------------------
   - distributor: ninja-bear-distributor-git
     as: git
-    url: https://github.com/exampleuser/ninja-bear-distributor-test.git
+    url: https://github.com/exampleuser/example-repo.git
     path: config
     user:
     password:
     branch: main
-    message: Updating abc
+    message: Update config
 
 languages:
   - language: ninja-bear-language-examplescript
