@@ -1,8 +1,8 @@
 import datetime
+import os
 import pathlib
 import tempfile
 import unittest
-import getpass
 
 from typing import Type
 from os.path import join
@@ -118,10 +118,11 @@ class Test(unittest.TestCase):
                 if change:
                     config['properties'][2]['value'] = start_datetime.timestamp()
 
-                # If user is 'runner' the context is a Github action and the Git user needs to be set.
-                if getpass.getuser() == 'runner':
-                    execute_command('git config user.name github-actions')
-                    execute_command('git config user.email github-actions@github.com')
+                # If context is a CI server, set the Git user.
+                if os.getenv('GITHUB_ACTIONS') or os.getenv('TRAVIS') or \
+                    os.getenv('CIRCLECI') or os.getenv('GITLAB_CI'):
+                    execute_command('git config -g user.name github-actions')
+                    execute_command('git config -g user.email github-actions@github.com')
                 
                 # Run parsing and distribution.
                 orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
