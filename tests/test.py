@@ -117,7 +117,12 @@ class Test(unittest.TestCase):
                 # If change shall be tested, change float property.
                 if change:
                     config['properties'][2]['value'] = start_datetime.timestamp()
-                print('user ->', getpass.getuser())
+
+                # If user is 'runner' the context is a Github action and the Git user needs to be set.
+                if getpass.getuser() == 'runner':
+                    execute_command('git config user.name github-actions')
+                    execute_command('git config user.email github-actions@github.com')
+                
                 # Run parsing and distribution.
                 orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
                 orchestrator.distribute()
