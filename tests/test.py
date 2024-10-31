@@ -121,8 +121,9 @@ class Test(unittest.TestCase):
                 # If context is a CI server, set the Git user.
                 if os.getenv('GITHUB_ACTIONS') or os.getenv('TRAVIS') or \
                     os.getenv('CIRCLECI') or os.getenv('GITLAB_CI'):
-                    execute_command('git config -g user.name github-actions')
-                    execute_command('git config -g user.email github-actions@github.com')
+                    print('---------- setting user')
+                    execute_command('git config --global user.name github-actions')
+                    execute_command('git config --global user.email github-actions@github.com')
                 
                 # Run parsing and distribution.
                 orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
