@@ -14,9 +14,6 @@ on:
     types:
       - 'created'
 
-permissions:
-    contents: write
-
 jobs:
   test_and_lint:
     name: Test and lint

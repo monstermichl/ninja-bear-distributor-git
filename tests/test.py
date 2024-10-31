@@ -1,8 +1,8 @@
 import datetime
 import pathlib
-import re
 import tempfile
 import unittest
+import getpass
 
 from typing import Type
 from os.path import join
@@ -117,7 +117,7 @@ class Test(unittest.TestCase):
                 # If change shall be tested, change float property.
                 if change:
                     config['properties'][2]['value'] = start_datetime.timestamp()
-
+                print('user ->', getpass.getuser())
                 # Run parsing and distribution.
                 orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
                 orchestrator.distribute()
