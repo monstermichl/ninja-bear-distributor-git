@@ -111,7 +111,7 @@ class Test(unittest.TestCase):
                 config = yaml.safe_load(f)
                 remote = environ.get('URL')
                 token = environ.get('TOKEN')
-                start_time = datetime.datetime.now().time()
+                start_datetime = datetime.datetime.now()
 
                 if not remote:
                     raise Exception('No remote URL provided')
@@ -144,25 +144,36 @@ class Test(unittest.TestCase):
 
                     with open(target_file_path, 'r') as f:
                         loaded_content = f.read()
-                        date_comments = list(re.finditer(r'.+ date: ((\d+(:|\.))+\d+).+', loaded_content))
-                        time_comments = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
+                        date_comment_matches = list(re.finditer(r'.+ date: ((\d+(:|\.))+\d+).+', loaded_content))
+                        date_greater = False
 
-                        if len(date_comments) > 0:
-                            date_comment = date_comments[0]
-
+                        if len(date_comment_matches) > 0:
+                            date_comment_match = date_comment_matches[0]
+                            date_comment = date_comment_match.group(0)
+                            print('------ date commnet', date_comment)
                             # Remove date from content for easier comparison.
-                            date_comments = loaded_content.replace(date_comment.group(0), '')
+                            loaded_content = loaded_content.replace(date_comment, '')
 
-                        if len(time_comments) > 0:
-                            time_comment = time_comments[0]
+                            # Compare date.
+                            if include_time:
+                                compare_date = datetime.datetime.strptime(date_comment_match.group(1), '%Y-%m-%d').date()
+                                start_date = start_datetime.date()
+                                date_greater = compare_date > start_date
+
+                                self.assertGreaterEqual(compare_date, start_date)
+
+                        time_comment_matches = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
+
+                        if len(time_comment_matches) > 0:
+                            time_comment_match = time_comment_matches[0]
 
                             # Remove time from content for easier comparison.
-                            loaded_content = loaded_content.replace(time_comment.group(0), '')
+                            loaded_content = loaded_content.replace(time_comment_match.group(0), '')
 
-                            # Compare time.
-                            if include_time:
-                                compare_time = datetime.datetime.strptime(time_comment.group(1), '%H:%M:%S.%f').time()
-                                self.assertGreaterEqual(compare_time, start_time)
+                            # Compare time (only if date is not already greater).
+                            if include_time and not date_greater:
+                                compare_time = datetime.datetime.strptime(time_comment_match.group(1), '%H:%M:%S.%f').time()
+                                self.assertGreaterEqual(compare_time, start_datetime.time())
 
                         # Compare content.
                         self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
