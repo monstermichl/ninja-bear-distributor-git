@@ -22,18 +22,6 @@ from ninja_bear import (
 from src.ninja_bear_distributor_git.distributor import Distributor, execute_command
 
 
-_COMPARE_FILE_CONTENT = """
-struct TestConfig:
-    boolean myBoolean = true
-    int myInteger = 142
-    float myFloat = 322.0
-    float myCombinedFloat = 45724.0
-    double myDouble = 233.9
-    regex myRegex = /Test Reg(E|e)x/ -- Just another RegEx.
-    string mySubstitutedString = 'Sometimes I just want to scream Hello World!'
-"""
-
-
 class ExampleScriptGenerator(GeneratorBase):
     """
     ExampleScript specific generator. For more information about the generator methods, refer to GeneratorBase.
@@ -105,13 +93,14 @@ class Test(unittest.TestCase):
         ]
 
     def test_distribution(self):
-        def distribute(include_time: bool):
+        def distribute(change: bool):
             # Load test-config.yaml directly in test file to allow implementer to modify properties if required.
             with open(self._test_config_path, 'r') as f:
                 config = yaml.safe_load(f)
                 remote = environ.get('URL')
                 token = environ.get('TOKEN')
                 start_datetime = datetime.datetime.now()
+                commit_message = f'Updating config ({start_datetime.isoformat()})'
 
                 if not remote:
                     raise Exception('No remote URL provided')
@@ -122,68 +111,33 @@ class Test(unittest.TestCase):
                 git_distributor = config['distributors'][0]
                 git_distributor['url'] = remote
                 git_distributor['password'] = token
+                git_distributor['message'] = commit_message
                 del git_distributor['user']
 
-                # Add meta data.
-                KEY_META = 'meta'
-
-                config[KEY_META] = {}
-                config[KEY_META]['date'] = include_time
-                config[KEY_META]['time'] = include_time
+                # If change shall be tested, change float property.
+                if change:
+                    config['properties'][2]['value'] = start_datetime.timestamp()
 
                 # Run parsing and distribution.
                 orchestrator = Orchestrator.parse_config(config, self._config_name, plugins=self._plugins)
                 orchestrator.distribute()
 
                 with tempfile.TemporaryDirectory() as temp_dir:
-                    target_file_path = join(temp_dir, git_distributor['path'], f'{self._config_name}.es')
                     code, _, _ = execute_command(f' git clone {remote.replace("://", f"://{token}@")} {temp_dir}')
                     
                     if code != 0:
                         raise Exception('Cloning failed')
 
-                    with open(target_file_path, 'r') as f:
-                        loaded_content = f.read()
-                        date_comment_matches = list(re.finditer(r'.+ date: ((\d+(:|\.))+\d+).+', loaded_content))
-                        date_greater = False
+                    _, compare_commit_message, _ = execute_command('git log -1 --pretty=%B', directory=temp_dir)  # https://stackoverflow.com/a/7293026
 
-                        if len(date_comment_matches) > 0:
-                            date_comment_match = date_comment_matches[0]
-                            date_comment = date_comment_match.group(0)
-                            print('------ date commnet', date_comment)
-                            # Remove date from content for easier comparison.
-                            loaded_content = loaded_content.replace(date_comment, '')
+                    if change:
+                        self.assertEqual(commit_message.strip(), compare_commit_message.strip())
 
-                            # Compare date.
-                            if include_time:
-                                compare_date = datetime.datetime.strptime(date_comment_match.group(1), '%Y-%m-%d').date()
-                                start_date = start_datetime.date()
-                                date_greater = compare_date > start_date
-
-                                self.assertGreaterEqual(compare_date, start_date)
-
-                        time_comment_matches = list(re.finditer(r'.+ time: ((\d+(:|\.))+\d+).+', loaded_content))
-
-                        if len(time_comment_matches) > 0:
-                            time_comment_match = time_comment_matches[0]
-
-                            # Remove time from content for easier comparison.
-                            loaded_content = loaded_content.replace(time_comment_match.group(0), '')
-
-                            # Compare time (only if date is not already greater).
-                            if include_time and not date_greater:
-                                compare_time = datetime.datetime.strptime(time_comment_match.group(1), '%H:%M:%S.%f').time()
-                                self.assertGreaterEqual(compare_time, start_datetime.time())
-
-                        # Compare content.
-                        self.assertEqual(_COMPARE_FILE_CONTENT.strip(), loaded_content.strip())
-
-        # Distibute first time with timestamp.
+        # First call to check if upload works.
         distribute(True)
 
-        # Distribute second and third time without timestamp to cover "nothing to commit"-branch.
-        distribute(False)
+        # Second call to undo value change.
         distribute(False)
 
-        # Distibute fourth time with timestamp just to make sure something with a timestamp is in the repo.
-        distribute(True)
+        # Third call to check 'nothing to commit'-branch.
+        distribute(False)
