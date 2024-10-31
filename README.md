@@ -6,7 +6,7 @@ distributors:  # Specifies which distributor plugins to load.
   # -------------------------------------------------------------------------
   # Property description for ninja-bear-distributor-git.
   #
-  # distributor (required): ninja-bear-distributor-git
+  # distributor (required): ninja-bear-distributor-git or git
   # as          (required): Specifies how the distributor will be referenced
   #                         at the language level (in this case git).
   # url         (required): Specifies the repository's URL.
