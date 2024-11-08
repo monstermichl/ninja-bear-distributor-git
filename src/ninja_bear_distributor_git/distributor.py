@@ -15,11 +15,6 @@ class NoRepositoryUrlProvidedException(Exception):
         super().__init__('No repository URL has been provided')
 
 
-class NoPasswordProvidedException(Exception):
-    def __init__(self, url):
-        super().__init__(f'No password has been provided for {url}')
-
-
 class NoCommitMessageProvidedException(Exception):
     def __init__(self, file_name, url):
         super().__init__(f'No commit message has been provided for {file_name} ({url})')
@@ -140,7 +135,6 @@ class Distributor(DistributorBase):
         Check preconditions.
 
         :raises NoRepositoryUrlProvidedException: Raised if no Git server URL has been provided.
-        :raises NoPasswordProvidedException:      Raised if no password has been provided.
         """
         url = self._url
 
@@ -155,10 +149,6 @@ class Distributor(DistributorBase):
         # Prompt password input if required.
         if not self._password and self._password_key_exists:
             self._password = getpass(f'Password ({url}): ', )
-
-        # Make sure a password has been provided.
-        if not self._password:
-            raise NoPasswordProvidedException(url)
         
     def _check_git_version(self):
         """
