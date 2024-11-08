@@ -171,18 +171,19 @@ class Distributor(DistributorBase):
         file_name = info.file_name
         data = info.data
 
-        # Prompt user input if required.
-        if not self._user and self._user_key_exists:
-            self._user = input(f'User ({url}): ')
-        
-        # Prompt password input if required.
-        if not self._password and self._password_key_exists:
-            self._password = getpass(f'Password ({url}): ', )
-
         # Create temporary folder to clone the git repo into and work with it.
         with tempfile.TemporaryDirectory() as temp_dir:
             SEPARATOR = '://'
             url = self._url
+
+            # Prompt user input if required.
+            if not self._user and self._user_key_exists:
+                self._user = input(f'User ({url}): ')
+
+            # Prompt password input if required.
+            if not self._password and self._password_key_exists:
+                self._password = getpass(f'Password ({url}): ', )
+
             url_parts = url.split(SEPARATOR)
             protocol = url_parts[0] if len(url_parts) > 1 else 'https'
             temp_url = url_parts[1] if len(url_parts) > 1 else url_parts[0]
