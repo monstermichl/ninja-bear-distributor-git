@@ -142,14 +142,6 @@ class Distributor(DistributorBase):
         if not url:
             raise NoRepositoryUrlProvidedException()
         
-        # Prompt user input if required.
-        if not self._user and self._user_key_exists:
-            self._user = input(f'User ({url}): ')
-        
-        # Prompt password input if required.
-        if not self._password and self._password_key_exists:
-            self._password = getpass(f'Password ({url}): ', )
-        
     def _check_git_version(self):
         """
         Checks if the installed Git version is suitable.
@@ -178,6 +170,14 @@ class Distributor(DistributorBase):
         """
         file_name = info.file_name
         data = info.data
+
+        # Prompt user input if required.
+        if not self._user and self._user_key_exists:
+            self._user = input(f'User ({url}): ')
+        
+        # Prompt password input if required.
+        if not self._password and self._password_key_exists:
+            self._password = getpass(f'Password ({url}): ', )
 
         # Create temporary folder to clone the git repo into and work with it.
         with tempfile.TemporaryDirectory() as temp_dir:
